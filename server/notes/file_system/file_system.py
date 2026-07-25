@@ -80,10 +80,11 @@ class IndexSchema(SchemaClass):
 
 
 class FileSystemNotes(BaseNotes):
-    TAGS_RE = re.compile(r"(?:(?<=^#)|(?<=\s#))[a-zA-Z0-9_-]+(?=\s|$)")
+    TAG_CHARS = rf"a-zA-Z0-9_\-{CJK_RANGES}"
+    TAGS_RE = re.compile(rf"(?:(?<=^#)|(?<=\s#))[{TAG_CHARS}]+(?=\s|$)")
     CODEBLOCK_RE = re.compile(r"`{1,3}.*?`{1,3}", re.DOTALL)
     TAGS_WITH_HASH_RE = re.compile(
-        r"(?:(?<=^)|(?<=\s))#[a-zA-Z0-9_-]+(?=\s|$)"
+        rf"(?:(?<=^)|(?<=\s))#[{TAG_CHARS}]+(?=\s|$)"
     )
 
     def __init__(self):
