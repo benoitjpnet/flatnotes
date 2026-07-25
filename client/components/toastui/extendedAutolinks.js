@@ -91,8 +91,26 @@ function parseWikiLink(source) {
   return null;
 }
 
+// Keep in sync with CJK_RANGES in server/notes/file_system/file_system.py
+const CJK_RANGES =
+  "\u1100-\u11ff" + // Hangul Jamo
+  "\u3040-\u30ff" + // Hiragana and Katakana
+  "\u3130-\u318f" + // Hangul Compatibility Jamo
+  "\u31f0-\u31ff" + // Katakana Phonetic Extensions
+  "\u3400-\u4dbf" + // CJK Unified Ideographs Extension A
+  "\u4e00-\u9fff" + // CJK Unified Ideographs
+  "\ua960-\ua97f" + // Hangul Jamo Extended-A
+  "\uac00-\ud7ff" + // Hangul Syllables and Jamo Extended-B
+  "\uf900-\ufaff" + // CJK Compatibility Ideographs
+  "\uff66-\uff9f"; // Halfwidth Katakana
+
+const TAG_RE = new RegExp(
+  `(?:^|\\s)(#[a-zA-Z0-9_\\-${CJK_RANGES}]+)(?=\\s|$)`,
+  "g",
+);
+
 function parseTagLink(source) {
-  const matched = source.matchAll(/(?:^|\s)(#[a-zA-Z0-9_-]+)(?=\s|$)/g);
+  const matched = source.matchAll(TAG_RE);
   if (matched) {
     return Array.from(matched).map((match) => {
       const text = match[1];
