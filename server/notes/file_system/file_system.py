@@ -8,7 +8,13 @@ from typing import List, Literal, Set, Tuple
 
 import whoosh
 from whoosh import writing
-from whoosh.analysis import CharsetFilter, StemmingAnalyzer
+from whoosh.analysis import (
+    CharsetFilter,
+    LowercaseFilter,
+    RegexTokenizer,
+    StemFilter,
+    StopFilter,
+)
 from whoosh.fields import DATETIME, ID, KEYWORD, TEXT, SchemaClass
 from whoosh.highlight import ContextFragmenter, WholeFragmenter
 from whoosh.index import Index, LockError
@@ -25,9 +31,42 @@ from ..base import BaseNotes
 from ..models import Note, NoteCreate, NoteUpdate, SearchResult
 
 MARKDOWN_EXT = ".md"
-INDEX_SCHEMA_VERSION = "5"
+INDEX_SCHEMA_VERSION = "6"
 
-StemmingFoldingAnalyzer = StemmingAnalyzer() | CharsetFilter(accent_map)
+# CJK scripts have no spaces between words so whoosh's default tokenizer
+# treats a whole run of CJK text as a single token, making substring
+# searches impossible. Tokenizing each CJK character individually
+# (unigrams) lets multi-character search terms match as a conjunction of
+# per-character terms.
+CJK_RANGES = (
+    "\u1100-\u11ff"  # Hangul Jamo
+    "\u3040-\u30ff"  # Hiragana and Katakana
+    "\u3130-\u318f"  # Hangul Compatibility Jamo
+    "\u31f0-\u31ff"  # Katakana Phonetic Extensions
+    "\u3400-\u4dbf"  # CJK Unified Ideographs Extension A
+    "\u4e00-\u9fff"  # CJK Unified Ideographs
+    "\ua960-\ua97f"  # Hangul Jamo Extended-A
+    "\uac00-\ud7ff"  # Hangul Syllables and Jamo Extended-B
+    "\uf900-\ufaff"  # CJK Compatibility Ideographs
+    "\uff66-\uff9f"  # Halfwidth Katakana
+)
+# A single CJK character, or a run of non-CJK word characters (the
+# default whoosh token pattern with CJK characters excluded).
+CJK_AWARE_TOKEN_RE = re.compile(
+    rf"[{CJK_RANGES}]"
+    rf"|(?:(?![{CJK_RANGES}])\w)+(?:\.?(?:(?![{CJK_RANGES}])\w)+)*",
+    re.UNICODE,
+)
+
+# Equivalent to whoosh's StemmingAnalyzer with a CJK aware tokenizer,
+# minsize=1 so single-character CJK tokens are kept, and accent folding.
+StemmingFoldingAnalyzer = (
+    RegexTokenizer(expression=CJK_AWARE_TOKEN_RE)
+    | LowercaseFilter()
+    | StopFilter(minsize=1)
+    | StemFilter()
+    | CharsetFilter(accent_map)
+)
 
 
 class IndexSchema(SchemaClass):
